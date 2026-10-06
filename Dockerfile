@@ -15,19 +15,14 @@ RUN apt update && apt install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# ایجاد دایرکتوری و ساخت کلیدهای هاست
 RUN mkdir -p /var/run/sshd && ssh-keygen -A
 
-# تنظیم پسورد
 RUN echo 'root:MySecurePass123!' | chpasswd
 
-# فعال‌سازی کامل ورود روت با پسورد
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
     && sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config \
     && sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config \
     && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
 
-EXPOSE 22
-
-# اجرای سرور SSH با خروجی لاگ استاندارد برای ریلوی
-CMD ["/usr/sbin/sshd", "-D", "-e"]
+# اسکریپت استارت برای هماهنگی با هر پورتی که ریلوی تعیین کند
+CMD ["/bin/bash", "-c", "SSH_PORT=${PORT:-22} && sed -i \"s/#Port 22/Port $SSH_PORT/\" /etc/ssh/sshd_config && sed -i \"s/^Port .*/Port $SSH_PORT/\" /etc/ssh/sshd_config && echo \"Starting SSH on port $SSH_PORT...\" && exec /usr/sbin/sshd -D -e -p $SSH_PORT"]
