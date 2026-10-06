@@ -1,28 +1,33 @@
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV SHELL=/bin/bash
 
+# ۱. نصب پکیج‌های پایه و پیش‌نیازها
 RUN apt update && apt install -y \
-    openssh-server \
     curl \
     wget \
     git \
     python3 \
     python3-pip \
+    python3-venv \
     sudo \
     htop \
     nano \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /var/run/sshd && ssh-keygen -A
+# ۲. دانلود و نصب مستقیم ttyd
+RUN curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.4/ttyd.x86_64 \
+    && chmod +x /usr/local/bin/ttyd
 
-RUN echo 'root:MySecurePass123!' | chpasswd
+# ۳. نصب پکیج‌منیجر سریع uv (برای اجرای سریع هرمس)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
-    && sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config \
-    && sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config \
-    && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+# ۴. یوزر و پسورد ورود به وب‌ترمینال (می‌توانید تغییر دهید)
+ENV USER_PASS="admin:password123"
 
-# اسکریپت استارت برای هماهنگی با هر پورتی که ریلوی تعیین کند
-CMD ["/bin/bash", "-c", "SSH_PORT=${PORT:-22} && sed -i \"s/#Port 22/Port $SSH_PORT/\" /etc/ssh/sshd_config && sed -i \"s/^Port .*/Port $SSH_PORT/\" /etc/ssh/sshd_config && echo \"Starting SSH on port $SSH_PORT...\" && exec /usr/sbin/sshd -D -e -p $SSH_PORT"]
+# ۵. باز کردن دسترسی تایپ (-W) و گوش دادن به پورت Railway
+WORKDIR /root
+CMD ttyd -p ${PORT:-8080} -W -c $USER_PASS bash
